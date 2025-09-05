@@ -27,20 +27,34 @@ const createItem = async (req, res) => {
   }
 };
 
-// @desc    Get all items
+// @desc    Get all items (with optional search and status filters)
 // @route   GET /api/items
 // @access  Public
 const getItems = async (req, res) => {
   try {
-    const filter = req.query.status ? { status: req.query.status } : {};
-    const items = await Item.find(filter)
+    // 👇 This is the new search logic
+    const keyword = req.query.search
+      ? {
+          // Search in both itemName and description
+          $or: [
+            { itemName: { $regex: req.query.search, $options: 'i' } }, // 'i' for case-insensitive
+            { description: { $regex: req.query.search, $options: 'i' } },
+          ],
+        }
+      : {};
+
+    const statusFilter = req.query.status ? { status: req.query.status } : {};
+
+    const items = await Item.find({ ...keyword, ...statusFilter }) // Combine all filters
       .populate('user', 'name collegeId')
       .sort({ createdAt: -1 });
+      
     res.json(items);
   } catch (error) {
     res.status(500).json({ message: 'Server Error', error: error.message });
   }
 };
+
 
 // @desc    Update an item (e.g., mark as resolved)
 // @route   PUT /api/items/:id
@@ -58,8 +72,11 @@ const updateItem = async (req, res) => {
       return res.status(401).json({ message: 'User not authorized' });
     }
 
-    // Update the isResolved status
-    item.isResolved = req.body.isResolved;
+    // Update the isResolved status from the request body
+    if (req.body.isResolved !== undefined) {
+      item.isResolved = req.body.isResolved;
+    }
+    
     const updatedItem = await item.save();
     res.json(updatedItem);
 
@@ -99,3 +116,4 @@ module.exports = {
   updateItem,
   deleteItem,
 };
+
