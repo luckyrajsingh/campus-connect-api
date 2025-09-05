@@ -1,6 +1,7 @@
 // index.js
 const express = require('express');
 const dotenv = require('dotenv');
+const cors = require('cors'); // 👈 Import cors
 const connectDB = require('./config/db');
 
 // Import routes
@@ -13,8 +14,9 @@ connectDB();
 
 const app = express();
 
-// Middleware to parse JSON
-app.use(express.json());
+// Middleware Setup
+app.use(cors()); // 👈 Use cors middleware FIRST
+app.use(express.json()); // Then, middleware to parse JSON
 
 // Default route
 app.get('/', (req, res) => {
@@ -24,7 +26,7 @@ app.get('/', (req, res) => {
 // Mount routes
 app.use('/api/users', userRoutes);
 app.use('/api/items', itemRoutes);
-app.use('/api/upload', uploadRoutes); // ✅ image upload route
+app.use('/api/upload', uploadRoutes);
 
 const PORT = process.env.PORT || 5000;
 
