@@ -5,7 +5,7 @@ const Item = require('../models/Item');
 // @access  Private
 const createItem = async (req, res) => {
   try {
-    const { status, itemName, description, category, location } = req.body;
+    const { status, itemName, description, category, location, imageUrl } = req.body;
 
     if (!status || !itemName || !description || !category || !location) {
       return res.status(400).json({ message: 'Please provide all required fields' });
@@ -17,7 +17,8 @@ const createItem = async (req, res) => {
       description,
       category,
       location,
-      user: req.user.id // This comes from our authMiddleware
+      imageUrl,
+      user: req.user.id
     });
 
     res.status(201).json(item);
@@ -31,20 +32,70 @@ const createItem = async (req, res) => {
 // @access  Public
 const getItems = async (req, res) => {
   try {
-    // We can add filtering later, e.g., /api/items?status=found
     const filter = req.query.status ? { status: req.query.status } : {};
-
     const items = await Item.find(filter)
-      .populate('user', 'name collegeId') // Get user's name and ID
-      .sort({ createdAt: -1 }); // Show newest first
-
+      .populate('user', 'name collegeId')
+      .sort({ createdAt: -1 });
     res.json(items);
   } catch (error) {
     res.status(500).json({ message: 'Server Error', error: error.message });
   }
 };
 
+// @desc    Update an item (e.g., mark as resolved)
+// @route   PUT /api/items/:id
+// @access  Private
+const updateItem = async (req, res) => {
+  try {
+    const item = await Item.findById(req.params.id);
+
+    if (!item) {
+      return res.status(404).json({ message: 'Item not found' });
+    }
+
+    // Check if the user owns the item
+    if (item.user.toString() !== req.user.id) {
+      return res.status(401).json({ message: 'User not authorized' });
+    }
+
+    // Update the isResolved status
+    item.isResolved = req.body.isResolved;
+    const updatedItem = await item.save();
+    res.json(updatedItem);
+
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+};
+
+// @desc    Delete an item
+// @route   DELETE /api/items/:id
+// @access  Private
+const deleteItem = async (req, res) => {
+  try {
+    const item = await Item.findById(req.params.id);
+
+    if (!item) {
+      return res.status(404).json({ message: 'Item not found' });
+    }
+
+    if (item.user.toString() !== req.user.id) {
+      return res.status(401).json({ message: 'User not authorized' });
+    }
+
+    await item.deleteOne();
+    res.json({ message: 'Item removed successfully' });
+
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+};
+
+
+// This should be the ONLY module.exports block in the file
 module.exports = {
   createItem,
-  getItems
+  getItems,
+  updateItem,
+  deleteItem,
 };
